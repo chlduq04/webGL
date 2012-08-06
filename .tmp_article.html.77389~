@@ -1,0 +1,197 @@
+<head>
+    <title>WebGL - Prac06 - Animation</title>
+    <script src="math.js" type="text/javascript"></script>
+    <script type="text/javascript">
+        var gl;
+        var g_hVertPos;
+        var g_hVertColor;
+        var g_hWorld;
+        var g_transPosX=0;
+        var g_mtxView;
+		var g_trans;
+		var g_alcle=0;
+        function start(){
+            if( !initWebGL() ){
+                return;
+            }
+
+            if( !initShader() ){
+                return;
+            }
+
+            var verAry=    [
+                0.0, 0.0, 0.0,
+                0.5, 0.0, 0.0,
+                0.0, 1.0, 0.0
+            ];
+
+            var colorAry= [
+                1.0, 0.0, 0.0, 1.0,
+                0.0, 1.0, 0.0, 1.0,
+                0.0, 0.0, 1.0, 1.0
+            ];
+
+            var glBufVert=    gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, glBufVert);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verAry), gl.STATIC_DRAW);
+
+            var glBufColor=    gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, glBufColor);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colorAry), gl.STATIC_DRAW);
+
+            gl.clearColor(0.4, 0.5, 0.6, 1.0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, glBufVert);
+            gl.vertexAttribPointer(g_hVertPos, 3, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, glBufColor);
+            gl.vertexAttribPointer(g_hVertColor, 4, gl.FLOAT, false, 0, 0);
+
+            g_mtxView=    new Matrix();
+
+            //0.05초 마다 drawScene 호출
+            setInterval(drawScene, 50);
+        }
+
+        function drawScene(){
+            gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+            
+            //x좌표 값을 변경 시킨 후 GLSL에 넘긴다.
+            //g_transPosX+=    0.01;
+            if(  g_transPosX<1.0 )    g_transPosX+=0.01;
+
+
+            //g_mtxView.translate(g_transPosX, 0, 0);
+			g_mtxView.rotateZ(g_transPosX);
+			//g_mtxView.rotateX(g_alcle);
+            gl.uniformMatrix4fv(g_hWorld, false, g_mtxView.flattern());
+            
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+
+        function initWebGL(){
+            var canvas=    document.getElementById("WebGL-Canvas");
+            if( !canvas ){
+                alert("Can't find WebGL-Canvas.");
+                return false;
+            }
+
+            try{
+                gl=    canvas.getContext("experimental-webgl");
+            }catch(e){
+            }
+
+            if( !gl ){
+                alert("Unable to initialize WebGL. Your browser may not support it.");
+                return false;
+            }
+
+            return true;
+        }
+
+        function initShader(){
+            var vertexShaderDesc=    getShader("VertexShader");
+            var vertexShader=        gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vertexShader, vertexShaderDesc);
+            gl.compileShader(vertexShader);
+            if( !gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS) ){
+                alert("Error(VertexShader): " + gl.getShaderInfoLog(vertexShader));
+                return false;
+            }
+
+            var fragmentShaderDesc=    getShader("FragmentShader");
+            var fragmentShader=        gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fragmentShader, fragmentShaderDesc);
+            gl.compileShader(fragmentShader);
+            if( !gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS) ){
+                alert("Error(FragmentShader): " + gl.getShaderInfoLog(fragmentShader));
+                return false;
+            }
+
+            var shaderProgram=    gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+
+            if( !gl.getProgramParameter(shaderProgram, gl.LINK_STATUS) ){
+                alert("Unagle to initialize the shader program.");
+                return false;
+            }
+
+            gl.useProgram(shaderProgram);
+
+            g_hVertPos=    gl.getAttribLocation(shaderProgram, "aPos");
+            if( g_hVertPos==-1 ){
+                alert("Unable to find Vertex Attribute Location.");
+                return false;
+            }
+            gl.enableVertexAttribArray(g_hVertPos);
+
+            g_hVertColor=    gl.getAttribLocation(shaderProgram, "aColor");            
+            if( g_hVertColor==-1 ){
+                alert("Unable to find Vertex Color Attribute Location.");
+                return false;
+            }
+            gl.enableVertexAttribArray(g_hVertColor);
+
+            g_hWorld=    gl.getUniformLocation(shaderProgram, "gWorld");
+            if( g_hWorld==-1 ){
+                alert("Unable to find 'gView' uniform location.");
+                return false;
+            }
+
+            return true;
+        }
+
+        function getShader(id){
+            var shaderScript=    document.getElementById(id);
+            if( !shaderScript ){
+                alert("Unable to get shader script. id='" + id + "'");
+                return null;
+            }
+
+            var shaderDesc=    "";
+            var currentChild=    shaderScript.firstChild;
+            while( currentChild ){
+                if( currentChild.nodeType==3 ){
+                    shaderDesc+=    currentChild.textContent;
+                }
+                currentChild=    currentChild.nextSibling;
+            }
+
+            return shaderDesc;
+        }
+
+    </script>
+
+    <script id="VertexShader" type="x-shader/x-vertex">
+        attribute vec3 aPos;
+        attribute vec4 aColor;
+
+        uniform mat4 gWorld;
+
+        varying vec4 vColor;
+
+        void main(){
+            gl_Position= gWorld * vec4(aPos, 1.0);
+            vColor=    aColor;
+        }
+    </script>
+
+    <script id="FragmentShader" type="x-shader/x-vertex">
+        precision mediump vec4;
+        varying vec4 vColor;
+        void main(){
+            gl_FragColor= vColor;
+        }
+    </script>
+
+</head>
+
+<body onload="start()">
+    <canvas id="WebGL-Canvas" style="border: 1px solid green" width="400" height="300">
+        Your browser doesn't appear to support the HTML5 <code>&lt;canvas&gt;</code> element.
+    </canvas>
+</body>
+
+</html>

@@ -1,0 +1,201 @@
+<html>
+    <head>
+        <title>WebGL - Prac02 - DrawTriangle</title>
+		<script src="math.js"  type="text/javascript"></script>
+        <script id="VertexShader" type="x-shader/x-vertex">
+            attribute vec3 aPos;
+            uniform vec4 g_World;
+            void main(){
+            gl_Position= g_World * vec4(aPos, 1.0);
+            }
+        </script>
+        <script id="FragmentShader" type="x-shader/x-vertex">
+            void main(){
+            gl_FragColor= vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        </script>
+        <script type="text/javascript">
+        	
+            var gl;
+            var vertexPositionAttribute;
+            var g_transPosX=0;
+			var m_vertex = [0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0, 0.0];
+			var g_matview;
+			var g_hWorld;
+			
+            function start(){
+                if (!initWebGL()) {
+                    return;
+                }
+                //시작하자 마자 
+                
+                if (!initShader()) {
+                    return;
+                }
+                //
+                
+                
+                //정점을 찍어보자.
+                //세개의 정점을 찍는데 x,y,z,의 좌표이다.
+                
+                var triangleVertAry = gl.createBuffer();
+                //그래픽 카드에 버퍼를 생성하는것.
+                gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertAry);
+                //이런식으로 사용합니다.
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(m_vertex), gl.STATIC_DRAW);
+                
+                //void bufferData(GLenum target, GLsizeiptr size, GLenum usage);
+                //void bufferData(GLenum target, ArrayBufferView data, GLenum usage);
+                //void bufferData(GLenum target, ArrayBuffer? data, GLenum usage);
+                //이렇게 정의되어 있다,
+                //처음값은 타겟,두번째는 어떤형식, 세번째는 그리는 방법
+                //세번째는 STATIC_DRAW, STREAM_DRAW, DYNAMIC_DRAW 정도가 있다.
+                
+                gl.clearColor(0.4, 0.5, 0.6, 1.0);
+				gl.enable(gl.DEPTH_TEST);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                //배경 클리어
+                
+                gl.bindBuffer(gl.ARRAY_BUFFER, triangleVertAry);
+                gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+                g_matview = new Matrix();
+                setInterval(drawScene, 100);
+                //그려라!
+                alert("finish!");
+            }
+            
+            function drawScene(){
+				
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                //x좌표 값을 변경 시킨 후 GLSL에 넘긴다.
+                g_transPosX += 0.01;
+                if (g_transPosX > 0.5) {
+					g_transPosX = 0;
+				}
+				
+			g_matview.translate(g_transPosX, 0, 0);
+            gl.uniformMatrix4fv(g_hWorld, false, g_matview.flattern());
+            
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            }
+            
+            function initWebGL(){
+                var canvas = document.getElementById("WebGL-Canvas");
+                if (!canvas) {
+                    alert("Can't find WebGL-Canvas.");
+                    return false;
+                }//캔버스가 없다면
+                try {
+                    gl = canvas.getContext("experimental-webgl");
+                } 
+                catch (e) {
+                    alert("getContext error!");
+                    return false;
+                }
+                
+                if (!gl) {
+                    alert("Unable to initialize WebGL. Your browser may not support it.");
+                    return false;
+                }
+                
+                return true;
+            }
+            
+            /* Vertex/Fragment Shader를 생성한다.*/
+            //3D를 다루어 보지 않았다면 shader라는것이 생소할텐데 
+            //그냥 어떤 물체를 그리기 위해 그 물체를 어떻게 그릴지 세팅한 것이라고 생각하고 넘어가자
+            
+            function initShader(){
+                var vertexShaderDesc = getShader("VertexShader");
+                //현재는 aPos로 물체의 위치만 설정해놓았다.
+                //아직은 모르겠지만 3D프로그래밍 기법이 같다면
+                //나중에는 이곳에 그림자 기법이나 광원(빛)의 위치를 설정할 것이다.
+                var vertexShader = gl.createShader(gl.VERTEX_SHADER);
+                gl.shaderSource(vertexShader, vertexShaderDesc);
+                
+                //void shaderSource(WebGLShader? shader, DOMString source);
+                //이렇다.
+                
+                gl.compileShader(vertexShader);
+                if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                    alert("Error(VertexShader): " + gl.getShaderInfoLog(vertexShader));
+                    return false;
+                }
+                //#1. Create Vertex Shader
+                
+                
+                var fragmentShaderDesc = getShader("FragmentShader");
+                //자 여기서는 색을 설정했다.
+                var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+                gl.shaderSource(fragmentShader, fragmentShaderDesc);
+                gl.compileShader(fragmentShader);
+                if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+                    alert("Error(PixelShader): " + gl.getShaderInfoLog(fragmentShader));
+                    return false;
+                }
+                //#2. Create Fragment Shader
+                
+                var shaderProgram = gl.createProgram();
+                gl.attachShader(shaderProgram, vertexShader);
+                gl.attachShader(shaderProgram, fragmentShader);
+				gl.linkProgram(shaderProgram)
+                //그리고 지금까지 한 셰이더를 설정
+                //#3. Create Shader Program and attach Shaders(Pixel/Fragment Shader)
+                
+                ;
+                if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                    alert("Unagle to initialize the shader program.");
+                    return false;
+                }
+                //#4. Link Shader Program
+                
+                gl.useProgram(shaderProgram);
+                //#5. User Shader Program
+                
+                vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aPos");
+                if (vertexPositionAttribute == -1) {
+                    alert("Unable to find Vertex Attribute Location.");
+                    return false;
+                }
+                gl.enableVertexAttribArray(vertexPositionAttribute);
+                //#6. Shader에 있는 "aPos"라는 이름의 변수명에 대한 핸들을 얻음
+				
+                g_hWorld = gl.getUniformLocation(shaderProgram, "g_World");
+                if (g_hWorld == -1) {
+                    alert("Unable to find 'gView' Uniform Location.");
+                    return false;
+                }
+                return true;
+            }
+			
+			function getShader(id){
+                var shaderScript = document.getElementById(id);
+                if (!shaderScript) {
+                    alert("Unable to get shader script. id='" + id + "'");
+                    return null;
+                }
+                
+                var shaderDesc = "";
+                var currentChild = shaderScript.firstChild;
+                while (currentChild) {
+                    if (currentChild.nodeType == 3) {
+                        shaderDesc += currentChild.textContent;
+                    }
+                    currentChild = currentChild.nextSibling;
+                }
+                
+                return shaderDesc;
+            }
+            
+        </script>
+    </head>
+    <body onload="start()">
+        <canvas id="WebGL-Canvas" style="border: 1px solid green" width="500" height="500">
+            Your browser doesn't appear to support the HTML5 
+            <code>
+                &lt;canvas&gt;
+            </code>
+            element.
+        </canvas>
+    </body>
+</html>
